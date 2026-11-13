@@ -1,5 +1,8 @@
 package net.openan.observability;
 
+import net.openan.observability.internal.AttributesConverter;
+import net.openan.observability.internal.Definitions;
+
 import static org.junit.jupiter.api.Assertions.*;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;

@@ -1,5 +1,8 @@
 package net.openan.observability;
 
+import net.openan.observability.internal.AttributesConverter;
+import net.openan.observability.internal.Definitions;
+
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.logs.Logger;

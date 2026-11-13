@@ -1,4 +1,4 @@
-package net.openan.observability;
+package net.openan.observability.internal;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -9,11 +9,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-final class AttributesConverter {
+/** Internal validation and conversion; not a supported public API. */
+public final class AttributesConverter {
     private static final Pattern CREDENTIAL = Pattern.compile("(?i)(bearer\\s+)[^\\s,;\\\"']+|((?:token|password|passwd|secret|api[_-]?key|authorization)[\\\"']?\\s*[:=]\\s*[\\\"']?(?:bearer\\s+)?)[^\\s,;\\\"']+" );
     private static final Pattern QUOTED_CREDENTIAL = Pattern.compile("(?i)((?:token|password|passwd|secret|api[_-]?key|authorization)[\"']?\\s*[:=]\\s*)(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*')");
     private static final Pattern URL = Pattern.compile("https?://[^\\s<>\\\"']+", Pattern.CASE_INSENSITIVE);
-    static String clean(String value) {
+    public static String clean(String value) {
         String masked = QUOTED_CREDENTIAL.matcher(value).replaceAll("$1[REDACTED]");
         masked = CREDENTIAL.matcher(masked).replaceAll("$1$2[REDACTED]");
         masked = URL.matcher(masked).replaceAll(match -> java.util.regex.Matcher.quoteReplacement(cleanUrl(match.group())));
@@ -26,7 +27,7 @@ final class AttributesConverter {
             return new URI(uri.getScheme(), null, uri.getHost(), uri.getPort(), uri.getPath(), null, null).toASCIIString();
         } catch (Exception e) { return "[REDACTED_URL]"; }
     }
-    static Attributes convert(Map<String, ?> input, char signal, Set<String> dimensions) {
+    public static Attributes convert(Map<String, ?> input, char signal, Set<String> dimensions) {
         if (input == null) throw new IllegalArgumentException();
         AttributesBuilder output = Attributes.builder();
         Set<String> seen = new HashSet<>();
@@ -51,7 +52,7 @@ final class AttributesConverter {
         }
         return output.build();
     }
-    static Definitions.Signal selectSignal(Map<String, ?> input, Map<String, Definitions.Signal> definitions) {
+    public static Definitions.Signal selectSignal(Map<String, ?> input, Map<String, Definitions.Signal> definitions) {
         if (input == null) throw new IllegalArgumentException();
         Object extension = null;
         boolean found = false;
@@ -67,7 +68,7 @@ final class AttributesConverter {
         if (definition == null) throw new IllegalArgumentException();
         return definition;
     }
-    static Attributes convertSignal(Map<String, ?> input, char signal, Definitions.Signal definition, boolean requireFields) {
+    public static Attributes convertSignal(Map<String, ?> input, char signal, Definitions.Signal definition, boolean requireFields) {
         Attributes attributes = convert(input, signal, definition.attributes());
         if (requireFields) {
             for (String key : definition.required()) {

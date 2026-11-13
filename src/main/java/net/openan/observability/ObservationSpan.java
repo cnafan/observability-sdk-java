@@ -1,5 +1,8 @@
 package net.openan.observability;
 
+import net.openan.observability.internal.AttributesConverter;
+import net.openan.observability.internal.Definitions;
+
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;

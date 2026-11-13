@@ -1,21 +1,22 @@
-package net.openan.observability;
+package net.openan.observability.internal;
 
 import java.util.Map;
 import java.util.Set;
 
-final class Definitions {
-    static final String PREFIX = "gen_ai.agent.a2at.";
-    static final String MESSAGE_SPAN = "message/send";
-    static final String MESSAGE_LOG = PREFIX + "message";
-    record Attribute(String signals, boolean integer, Set<String> values) {}
-    record Metric(boolean histogram, boolean integer, String unit, Set<String> dimensions) {}
-    record Signal(String extension, Set<String> attributes, Set<String> required) {}
-    static final Map<String, Signal> SPANS = Map.of(
+/** Internal signal definitions; not a supported public API. */
+public final class Definitions {
+    public static final String PREFIX = "gen_ai.agent.a2at.";
+    public static final String MESSAGE_SPAN = "message/send";
+    public static final String MESSAGE_LOG = PREFIX + "message";
+    public record Attribute(String signals, boolean integer, Set<String> values) {}
+    public record Metric(boolean histogram, boolean integer, String unit, Set<String> dimensions) {}
+    public record Signal(String extension, Set<String> attributes, Set<String> required) {}
+    public static final Map<String, Signal> SPANS = Map.of(
         "task-t", signal("task-t", false),
         "negotiation-t", signal("negotiation-t", false),
         "notification-t", signal("notification-t", false),
         "authorization-t", signal("authorization-t", false));
-    static final Map<String, Signal> LOGS = Map.of(
+    public static final Map<String, Signal> LOGS = Map.of(
         "task-t", signal("task-t", true),
         "negotiation-t", signal("negotiation-t", true),
         "notification-t", signal("notification-t", true),
@@ -42,7 +43,7 @@ final class Definitions {
         entry("notification.topic", "SML", false), entry("push.notification.url", "SL", false),
         entry("authorization.stage", "SL", false, "preauthorize", "execute"),
         entry("authorization.policy.operation.type", "SML", false));
-    static final Map<String, Metric> METRICS = Map.of(
+    public static final Map<String, Metric> METRICS = Map.of(
         "task.duration", new Metric(true, false, "ms", Set.of("task.type")),
         "task.count", new Metric(false, true, "", Set.of("task.type")),
         "negotiation.rounds", new Metric(true, true, "{round}", Set.of("negotiation.id", "negotiation.result")),
@@ -54,6 +55,6 @@ final class Definitions {
     private static Map.Entry<String, Attribute> entry(String name, String signals, boolean integer, String... values) {
         return Map.entry(name, new Attribute(signals, integer, Set.of(values)));
     }
-    static String shortName(String name) { return name.startsWith(PREFIX) ? name.substring(PREFIX.length()) : name; }
+    public static String shortName(String name) { return name.startsWith(PREFIX) ? name.substring(PREFIX.length()) : name; }
     private Definitions() {}
 }

@@ -22,10 +22,11 @@ A2A / A2A-T 采集方 → Observability Core → OpenTelemetry SDK → OTLP → 
 
 | 位置 | 内容 |
 |---|---|
-| [`src/main/java/net/openan/observability/`](src/main/java/net/openan/observability/) | Java 接口、字段校验、OTel 转换和导出配置 |
-| [`example/`](src/main/java/net/openan/observability/example/) | `TaskTExample` 演示任务场景，`ExtensionsExample` 验证四种扩展 |
+| [`src/main/java/net/openan/observability/`](src/main/java/net/openan/observability/) | Java 接口和 OTel 导出配置 |
+| [`internal/`](src/main/java/net/openan/observability/internal/) | 内部字段定义、校验与转换，不作为稳定公开 API |
+| [`examples/`](examples/) | `TaskTExample` 演示任务场景，`ExtensionsExample` 验证四种扩展 |
 | [`src/test/java/`](src/test/java/) | 字段校验、信号转换、上下文和配置测试 |
-| [`collector-config.yaml`](collector-config.yaml) | 本地联调配置，接收三类 OTLP 信号并输出到 Collector 日志 |
+| [`examples/collector-config.yaml`](examples/collector-config.yaml) | 本地联调配置，接收三类 OTLP 信号并输出到 Collector 日志 |
 
 ## 快速开始
 
@@ -34,7 +35,7 @@ A2A / A2A-T 采集方 → Observability Core → OpenTelemetry SDK → OTLP → 
 **1. 启动 Collector。** 将 `otelcol` 加入 `PATH`，在第一个终端运行：
 
 ```powershell
-otelcol --config=collector-config.yaml
+otelcol --config=examples/collector-config.yaml
 ```
 
 **2. 运行四种扩展的样例。** 在第二个终端运行：
@@ -42,7 +43,7 @@ otelcol --config=collector-config.yaml
 ```powershell
 $env:OTEL_EXPORTER_OTLP_PROTOCOL = 'grpc'
 $env:OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4317'
-mvn -B -ntp compile exec:java '-Dexec.mainClass=net.openan.observability.example.ExtensionsExample' '-Dexec.cleanupDaemonThreads=false'
+mvn -B -ntp -Pexamples test-compile exec:java '-Dexec.classpathScope=test' '-Dexec.mainClass=net.openan.observability.example.ExtensionsExample' '-Dexec.cleanupDaemonThreads=false'
 ```
 
 验证 HTTP/Protobuf 时，将协议改为 `http/protobuf`、地址改为 `http://localhost:4318`，再运行同一条 Maven 命令。

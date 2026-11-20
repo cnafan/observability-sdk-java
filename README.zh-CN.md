@@ -16,11 +16,11 @@
 
 | 分类 | Trace | Metric | Log | 定义文件 |
 |---|---|---|---|---|
-| A2A / A2A-T | A2A 消息、任务和流式调用；四种 A2A-T 扩展 | 2 项 A2A 指标、8 项 A2A-T 指标 | `gen_ai.agent.a2at.message` | [`a2at.yaml`](src/main/resources/observability/a2at.yaml) |
+| A2A / A2A-T / GenAI | A2A 消息、任务和流式调用；四种 A2A-T 扩展 | 2 项 A2A 指标、8 项 A2A-T 指标、1 项 GenAI Token 指标 | `gen_ai.agent.a2at.message` | [`a2at.yaml`](src/main/resources/observability/a2at.yaml) |
 | Workflow | `a2at.workflow`、`a2at.step.<name>` | `workflow.duration`、`workflow.count`、`step.duration` | Workflow 与 Step 事件 | [`workflow.yaml`](src/main/resources/observability/workflow.yaml) |
-| Agent | `a2at.substep.<name>` | `substep.duration`、`gen_ai.client.token.usage` | Agent 生命周期与 Substep 事件 | [`agent.yaml`](src/main/resources/observability/agent.yaml) |
+| Agent | `a2at.substep.<name>` | `substep.duration` | Agent 生命周期与 Substep 事件 | [`agent.yaml`](src/main/resources/observability/agent.yaml) |
 
-三份 YAML 均包含版本、属性类型、信号名称、指标维度和必填属性。调整标准时修改对应 YAML 并递增 `version`；SDK 在导出前按信号名称和属性白名单校验输入。
+三份 YAML 均包含版本、属性类型、信号名称、指标维度和必填属性。`a2at.yaml` 按 `traces`、`metrics`、`logs` 分为三类信号，每类再按 `a2a`、`a2at`、`genai` 标识来源，具体信号下定义其属性。调整标准时修改对应 YAML 并递增 `version`；SDK 在导出前按信号名称和属性白名单校验输入。
 
 其中 `extension.name` 是 A2A-T 的分支字段：值为 `task-t`、`negotiation-t`、`notification-t` 或 `authorization-t` 时，分别使用该扩展定义的 Span 和 Log 属性白名单。其他属性只校验名称、类型、信号适用范围和必填性，不校验业务取值。
 
@@ -148,6 +148,7 @@ try (var scope = TraceContextPropagation.extractToCurrent(requestHeaders, header
 - A2A Trace 支持 `message/send`、`message/stream`、`message/stream-event`、`message/stream-error` 与 `tasks/*` 操作；流事件可关联上游 Span Link。
 - A2A 指标为 `gen_ai.client.operation.duration` 与 `gen_ai.agent.a2a.streaming.duration`，均要求 `operation.name`。
 - A2A-T 包含 Task-T、Negotiation-T、Notification-T、Authorization-T 四种扩展，以及 `task.duration`、`task.count`、`negotiation.rounds`、`negotiation.count`、`notification.count` 和三项 Authorization 指标。
+- GenAI Token 指标为 `gen_ai.client.token.usage`，要求 Agent 名称、请求模型和 Token 类型。
 - `message/send`、`message/stream` 和 `gen_ai.agent.a2at.message` 使用 `extension.name` 选择对应扩展属性。Task-T 的 `task.type` 必填且不能为空。
 
 ### Workflow
@@ -159,7 +160,7 @@ try (var scope = TraceContextPropagation.extractToCurrent(requestHeaders, header
 ### Agent
 
 - `a2at.substep.<name>` 要求 `gen_ai.agent.name`、`substep.name` 和 `substep.status`。
-- `substep.duration` 要求 Agent 与子步骤名称；`gen_ai.client.token.usage` 要求 Agent、模型和 Token 类型。
+- `substep.duration` 要求 Agent 与子步骤名称。
 - Log 名称为 `gen_ai.agent.a2at.agent` 和 `gen_ai.agent.a2at.substep`；`agent.skills` 传非空字符串列表。
 
 短属性名和带 `gen_ai.agent.a2at.` 前缀的属性名都可传入，SDK 导出时使用 YAML 中的 OTel 名称。同一属性同时使用短名和全名时，该条信号会被拒绝。非法 Trace、Metric 或 Log 不会发送到 Collector，并会输出不带输入值的诊断日志。

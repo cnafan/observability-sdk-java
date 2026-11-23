@@ -21,7 +21,7 @@ import net.openan.observability.TraceContextPropagation;
 
 /** Sends one Task-T sample over HTTP between two JVMs. */
 public final class TaskTHttpExample {
-    private static final String OPERATION = "message/send";
+    private static final String OPERATION = "SendMessage";
     private static final String REQUEST = "{\"extension\":\"task-t\",\"taskType\":\"diagnosis\"}";
     private static final String RESPONSE = "{\"status\":\"completed\"}";
     private static final TraceContextPropagation.Getter<Headers> HEADER_GETTER = new TraceContextPropagation.Getter<>() {

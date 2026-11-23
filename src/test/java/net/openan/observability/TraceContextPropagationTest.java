@@ -18,7 +18,7 @@ class TraceContextPropagationTest {
             .addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()).build()) {
             var observe = new Observability(sdk);
             var carrier = new LinkedHashMap<String, String>();
-            var client = observe.trace("message/send", SignalKind.CLIENT, Map.of());
+            var client = observe.trace("SendMessage", SignalKind.CLIENT, Map.of());
             try (var scope = client.makeCurrent()) {
                 TraceContextPropagation.inject(carrier, Map::put);
             }
@@ -28,7 +28,7 @@ class TraceContextPropagationTest {
                 @Override public String get(Map<String, String> headers, String key) { return headers.get(key); }
             })) {
                 assertTrue(Span.current().getSpanContext().isValid());
-                observe.trace("message/send", SignalKind.SERVER, Map.of()).end();
+                observe.trace("SendMessage", SignalKind.SERVER, Map.of()).end();
             }
             client.end();
             var server = exporter.getFinishedSpanItems().get(0);
@@ -42,7 +42,7 @@ class TraceContextPropagationTest {
         var exporter = InMemorySpanExporter.create();
         try (var sdk = OpenTelemetrySdk.builder().setTracerProvider(SdkTracerProvider.builder()
             .addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()).build()) {
-            var span = new Observability(sdk).trace("message/send", SignalKind.CLIENT, Map.of());
+            var span = new Observability(sdk).trace("SendMessage", SignalKind.CLIENT, Map.of());
             span.error(new IllegalStateException("unavailable"));
             span.end();
             var data = exporter.getFinishedSpanItems().get(0);

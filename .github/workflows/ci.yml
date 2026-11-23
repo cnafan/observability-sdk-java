@@ -49,7 +49,7 @@ jobs:
         run: |
           docker logs otelcol 2>&1 | tee collector.log
           grep -F 'sdk-consumer-ci' collector.log
-          grep -F 'message/send' collector.log
+          grep -F 'SendMessage' collector.log
           grep -F 'gen_ai.agent.a2at.task.duration' collector.log
           grep -F 'gen_ai.agent.a2at.message' collector.log
 

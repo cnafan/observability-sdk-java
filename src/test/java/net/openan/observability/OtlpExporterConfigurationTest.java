@@ -331,7 +331,7 @@ class OtlpExporterConfigurationTest {
 
     private static void recordSignals(ObservabilitySdk sdk, String runId) {
         var attributes = Map.of("extension.name", "task-t", "task.type", "collector-config-test", "task.object", runId);
-        var span = sdk.observe().trace("message/send", SignalKind.CLIENT, attributes);
+        var span = sdk.observe().trace("SendMessage", SignalKind.CLIENT, attributes);
         sdk.observe().log("gen_ai.agent.a2at.message", LogSeverity.INFO, runId, attributes, span);
         sdk.observe().metric("task.count", 1, Map.of("task.type", runId));
         span.end();

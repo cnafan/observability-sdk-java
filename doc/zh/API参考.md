@@ -106,7 +106,7 @@ ObservationSpan trace(String name, SignalKind kind, Map<String, ?> attributes,
                       ObservationSpan parent)
 ```
 
-创建并返回一个 Span 包装对象。第二个重载可显式指定父 Span；对于 `message/stream-event`，该父对象作为 Span Link 使用。
+创建并返回一个 Span 包装对象。第二个重载可显式指定父 Span；对于 `SendStreamingMessage-event`，该父对象作为 Span Link 使用。
 
 | `SignalKind` | 用途 |
 |---|---|
@@ -196,7 +196,7 @@ try (var span = observe.trace("a2at.substep.retrieve-alarms", SignalKind.INTERNA
 
 ```java
 Map<String, String> headers = new HashMap<>();
-try (var client = observe.trace("message/send", SignalKind.CLIENT, attributes);
+try (var client = observe.trace("SendMessage", SignalKind.CLIENT, attributes);
      var scope = client.makeCurrent()) {
     TraceContextPropagation.inject(headers, Map::put);
 }
@@ -213,7 +213,7 @@ TraceContextPropagation.Getter<Map<String, String>> getter = new TraceContextPro
 };
 
 try (var scope = TraceContextPropagation.extractToCurrent(headers, getter);
-     var server = observe.trace("message/send", SignalKind.SERVER, attributes)) {
+     var server = observe.trace("SendMessage", SignalKind.SERVER, attributes)) {
     server.ok();
 }
 ```
@@ -224,7 +224,7 @@ try (var scope = TraceContextPropagation.extractToCurrent(headers, getter);
 
 | 分类 | Trace | Metric | Log |
 |---|---|---|---|
-| A2A / A2A-T | `message/send`、`message/stream`、`message/stream-event`、`message/stream-error`、`tasks/*` | A2A 两项指标、Task-T / Negotiation-T / Notification-T / Authorization-T 八项指标 | `gen_ai.agent.a2at.message` |
+| A2A / A2A-T | `SendMessage`、`SendStreamingMessage`、`SendStreamingMessage-event`、`SendStreamingMessage-end`、`GetTask`、`CancelTask`、`ListTasks`、`SubscribeToTask`、推送通知配置操作 | A2A 两项指标、Task-T / Negotiation-T / Notification-T / Authorization-T 八项指标 | `gen_ai.agent.a2at.message` |
 | Workflow | `a2at.workflow`、`a2at.step.<name>` | `workflow.duration`、`workflow.count`、`step.duration` | `gen_ai.agent.a2at.workflow`、`gen_ai.agent.a2at.step` |
 | Agent | `a2at.substep.<name>` | `substep.duration`、`gen_ai.client.token.usage` | `gen_ai.agent.a2at.agent`、`gen_ai.agent.a2at.substep` |
 

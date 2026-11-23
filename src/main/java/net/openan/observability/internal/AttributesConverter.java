@@ -60,7 +60,7 @@ public final class AttributesConverter {
                     s = s.toLowerCase(Locale.ROOT);
                     if (!definition.values().contains(s)) throw new IllegalArgumentException();
                 }
-                if (key.equals("gen_ai.system") && !s.equals("A2A")) throw new IllegalArgumentException();
+                if (key.equals("gen_ai.system") && !s.equals("a2a")) throw new IllegalArgumentException();
                 if (key.equals("operation.name") && s.isBlank()) throw new IllegalArgumentException();
                 output.put(definition.name(), clean(s));
             }

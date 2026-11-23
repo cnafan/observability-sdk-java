@@ -6,15 +6,19 @@ attributes:
   task_id: {otel_name: gen_ai.agent.a2a.task_id, type: string, signals: S}
   context_id: {otel_name: gen_ai.agent.a2a.context_id, type: string, signals: S}
   message_id: {otel_name: gen_ai.agent.a2a.message_id, type: string, signals: S}
-  Role: {otel_name: gen_ai.agent.a2a.Role, type: string, signals: S}
-  Extensions: {otel_name: gen_ai.agent.a2a.Extensions, type: string, signals: S}
+  role: {otel_name: gen_ai.agent.a2a.role, type: string, signals: S}
+  extensions: {otel_name: gen_ai.agent.a2a.extensions, type: string, signals: S}
   parts.number: {otel_name: gen_ai.agent.a2a.parts.number, type: integer, signals: S}
   config_id: {otel_name: gen_ai.agent.a2a.config_id, type: string, signals: S}
-  Request: {otel_name: gen_ai.agent.a2a.Request, type: string, signals: S}
-  Response: {otel_name: gen_ai.agent.a2a.Response, type: string, signals: S}
+  request: {otel_name: gen_ai.agent.a2a.request, type: string, signals: S}
+  response: {otel_name: gen_ai.agent.a2a.response, type: string, signals: S}
   streaming-event: {otel_name: gen_ai.agent.a2a.streaming-event, type: string, signals: S}
   error.type: {otel_name: error.type, type: string, signals: SM}
   gen_ai.system: {otel_name: gen_ai.system, type: string, signals: M}
+  gen_ai.provider.name: {otel_name: gen_ai.provider.name, type: string, signals: S}
+  gen_ai.operation.name: {otel_name: gen_ai.operation.name, type: string, signals: S}
+  gen_ai.agent.id: {otel_name: gen_ai.agent.id, type: string, signals: S}
+  gen_ai.agent.version: {otel_name: gen_ai.agent.version, type: string, signals: S}
   extension.name: {otel_name: gen_ai.agent.a2at.extension.name, type: string, values: [task-t, negotiation-t, notification-t, authorization-t]}
   task.type: {otel_name: gen_ai.agent.a2at.task.type, type: string}
   task.object: {otel_name: gen_ai.agent.a2at.task.object, type: string}
@@ -29,173 +33,152 @@ attributes:
   authorization.stage: {otel_name: gen_ai.agent.a2at.authorization.stage, type: string}
   authorization.policy.operation.type: {otel_name: gen_ai.agent.a2at.authorization.policy.operation.type, type: string}
 
-traces:
-  a2a:
-    attribute_prefix: gen_ai.agent.a2a.
-    signals:
-      message/send:
-        role: message
-        attributes: &a2a_span_attributes
-          allowed: [operation.name, task_id, context_id, message_id, Role, Extensions, parts.number, config_id, Request, Response, error.type]
-          required: []
-      message/stream:
-        role: stream
-        attributes: *a2a_span_attributes
-      message/stream-event:
-        role: stream_event
-        client_only: true
-        attributes:
-          allowed: [operation.name, task_id, context_id, message_id, Role, Extensions, parts.number, config_id, Request, Response, error.type, streaming-event]
-          required: []
-      message/stream-error:
-        role: stream_error
-        client_only: true
-        attributes: *a2a_span_attributes
-      tasks/get: {attributes: *a2a_span_attributes}
-      tasks/cancel: {attributes: *a2a_span_attributes}
-      tasks/list: {attributes: *a2a_span_attributes}
-      tasks/resubscribe: {attributes: *a2a_span_attributes}
-      tasks/pushNotificationConfig/set: {attributes: *a2a_span_attributes}
-      tasks/pushNotificationConfig/get: {attributes: *a2a_span_attributes}
-      tasks/pushNotificationConfig/list: {attributes: *a2a_span_attributes}
-      tasks/pushNotificationConfig/delete: {attributes: *a2a_span_attributes}
-  a2at:
-    signals:
-      message/send:
-        extensions: &a2at_span_extensions
-          task-t:
-            attributes:
-              allowed: [extension.name, task.type, task.object]
-              required: [extension.name, task.type]
-          negotiation-t:
-            attributes:
-              allowed: [extension.name, negotiation.id, negotiation.round, negotiation.total_rounds, negotiation.result, negotiation.performative]
-              required: [extension.name]
-          notification-t:
-            attributes:
-              allowed: [extension.name, notification.topic, push.notification.url]
-              required: [extension.name]
-          authorization-t:
-            attributes:
-              allowed: [extension.name, authorization.stage, authorization.policy.operation.type]
-              required: [extension.name]
-      message/stream:
-        extensions: *a2at_span_extensions
+a2a:
+  attribute_prefix: gen_ai.agent.a2a.
+  special_traces:
+    message: SendMessage
+    stream: SendStreamingMessage
+    stream_event: SendStreamingMessage-event
+    stream_error: SendStreamingMessage-end
+  trace_names:
+    - SendMessage
+    - SendStreamingMessage
+    - SendStreamingMessage-event
+    - SendStreamingMessage-end
+    - GetTask
+    - CancelTask
+    - ListTasks
+    - SubscribeToTask
+    - CreateTaskPushNotificationConfig
+    - GetTaskPushNotificationConfig
+    - ListTaskPushNotificationConfigs
+    - DeleteTaskPushNotificationConfig
+  client_only_traces: []
+  span_attributes:
+    allowed: [operation.name, task_id, context_id, message_id, role, extensions, parts.number, config_id, request, response, error.type, gen_ai.provider.name, gen_ai.operation.name, gen_ai.agent.name, gen_ai.agent.id, gen_ai.agent.version]
+    required: []
+  stream_event_attributes:
+    allowed: [operation.name, task_id, context_id, message_id, role, extensions, parts.number, config_id, request, response, error.type, streaming-event, gen_ai.provider.name, gen_ai.operation.name, gen_ai.agent.name, gen_ai.agent.id, gen_ai.agent.version]
+    required: []
 
 metrics:
-  a2a:
-    signals:
-      gen_ai.client.operation.duration:
-        otel_name: gen_ai.client.operation.duration
-        type: histogram
-        value_type: number
-        unit: s
-        attributes:
-          allowed: [operation.name, gen_ai.system, error.type]
-          required: [operation.name]
-      gen_ai.agent.a2a.streaming.duration:
-        otel_name: gen_ai.agent.a2a.streaming.duration
-        type: histogram
-        value_type: number
-        unit: s
-        attributes:
-          allowed: [operation.name, gen_ai.system, error.type]
-          required: [operation.name]
-  a2at:
-    signals:
-      task.duration:
-        otel_name: gen_ai.agent.a2at.task.duration
-        type: histogram
-        value_type: number
-        unit: ms
-        attributes:
-          allowed: [task.type, task.object]
-          required: [task.type]
-      task.count:
-        otel_name: gen_ai.agent.a2at.task.count
-        type: counter
-        value_type: integer
-        unit: ''
-        attributes:
-          allowed: [task.type, task.object]
-          required: [task.type]
-      negotiation.rounds:
-        otel_name: gen_ai.agent.a2at.negotiation.rounds
-        type: histogram
-        value_type: integer
-        unit: '{round}'
-        attributes:
-          allowed: [negotiation.id, negotiation.result]
-          required: []
-      negotiation.count:
-        otel_name: gen_ai.agent.a2at.negotiation.count
-        type: counter
-        value_type: integer
-        unit: ''
-        attributes:
-          allowed: [negotiation.result]
-          required: []
-      notification.count:
-        otel_name: gen_ai.agent.a2at.notification.count
-        type: counter
-        value_type: integer
-        unit: ''
-        attributes:
-          allowed: [notification.topic]
-          required: []
-      authorization.preauthorize.count:
-        otel_name: gen_ai.agent.a2at.authorization.preauthorize.count
-        type: counter
-        value_type: integer
-        unit: ''
-        attributes:
-          allowed: [authorization.policy.operation.type]
-          required: []
-      authorization.preauthorize.duration:
-        otel_name: gen_ai.agent.a2at.authorization.preauthorize.duration
-        type: histogram
-        value_type: number
-        unit: ms
-        attributes:
-          allowed: [authorization.policy.operation.type]
-          required: []
-      authorization.execute.count:
-        otel_name: gen_ai.agent.a2at.authorization.execute.count
-        type: counter
-        value_type: integer
-        unit: ''
-        attributes:
-          allowed: [authorization.policy.operation.type]
-          required: []
-  genai:
-    signals:
-      gen_ai.client.token.usage:
-        otel_name: gen_ai.client.token.usage
-        type: counter
-        value_type: integer
-        unit: token
-        attributes:
-          allowed: [gen_ai.agent.name, gen_ai.request.model, gen_ai.token.type]
-          required: [gen_ai.agent.name, gen_ai.request.model, gen_ai.token.type]
+  gen_ai.client.operation.duration:
+    otel_name: gen_ai.client.operation.duration
+    protocol: a2a
+    type: histogram
+    value_type: number
+    unit: s
+    attributes:
+      allowed: [operation.name, gen_ai.system, error.type]
+      required: [operation.name]
+  gen_ai.agent.a2a.streaming.duration:
+    otel_name: gen_ai.agent.a2a.streaming.duration
+    protocol: a2a
+    type: histogram
+    value_type: number
+    unit: s
+    attributes:
+      allowed: [operation.name, gen_ai.system, error.type]
+      required: [operation.name]
+  task.duration:
+    otel_name: gen_ai.agent.a2at.task.duration
+    type: histogram
+    value_type: number
+    unit: ms
+    extension: task-t
+    attributes:
+      allowed: [task.type, task.object]
+      required: [task.type]
+  task.count:
+    otel_name: gen_ai.agent.a2at.task.count
+    type: counter
+    value_type: integer
+    unit: ''
+    extension: task-t
+    attributes:
+      allowed: [task.type, task.object]
+      required: [task.type]
+  negotiation.rounds:
+    otel_name: gen_ai.agent.a2at.negotiation.rounds
+    type: histogram
+    value_type: integer
+    unit: '{round}'
+    extension: negotiation-t
+    attributes:
+      allowed: [negotiation.id, negotiation.result]
+      required: []
+  negotiation.count:
+    otel_name: gen_ai.agent.a2at.negotiation.count
+    type: counter
+    value_type: integer
+    unit: ''
+    extension: negotiation-t
+    attributes:
+      allowed: [negotiation.result]
+      required: []
+  notification.count:
+    otel_name: gen_ai.agent.a2at.notification.count
+    type: counter
+    value_type: integer
+    unit: ''
+    extension: notification-t
+    attributes:
+      allowed: [notification.topic]
+      required: []
+  authorization.preauthorize.count:
+    otel_name: gen_ai.agent.a2at.authorization.preauthorize.count
+    type: counter
+    value_type: integer
+    unit: ''
+    extension: authorization-t
+    attributes:
+      allowed: [authorization.policy.operation.type]
+      required: []
+  authorization.preauthorize.duration:
+    otel_name: gen_ai.agent.a2at.authorization.preauthorize.duration
+    type: histogram
+    value_type: number
+    unit: ms
+    extension: authorization-t
+    attributes:
+      allowed: [authorization.policy.operation.type]
+      required: []
+  authorization.execute.count:
+    otel_name: gen_ai.agent.a2at.authorization.execute.count
+    type: counter
+    value_type: integer
+    unit: ''
+    extension: authorization-t
+    attributes:
+      allowed: [authorization.policy.operation.type]
+      required: []
 
-logs:
-  a2at:
-    signals:
-      gen_ai.agent.a2at.message:
-        extensions:
-          task-t:
-            attributes:
-              allowed: [extension.name, task.type, task.object]
-              required: [extension.name, task.type]
-          negotiation-t:
-            attributes:
-              allowed: [extension.name, negotiation.id, negotiation.round, negotiation.total_rounds, negotiation.max_rounds, negotiation.result, negotiation.performative]
-              required: [extension.name]
-          notification-t:
-            attributes:
-              allowed: [extension.name, notification.topic, push.notification.url]
-              required: [extension.name]
-          authorization-t:
-            attributes:
-              allowed: [extension.name, authorization.stage, authorization.policy.operation.type]
-              required: [extension.name]
+extensions:
+  task-t:
+    span_attributes:
+      allowed: [extension.name, task.type, task.object]
+      required: [extension.name, task.type]
+    log_attributes:
+      allowed: [extension.name, task.type, task.object]
+      required: [extension.name, task.type]
+  negotiation-t:
+    span_attributes:
+      allowed: [extension.name, negotiation.id, negotiation.round, negotiation.total_rounds, negotiation.result, negotiation.performative]
+      required: [extension.name]
+    log_attributes:
+      allowed: [extension.name, negotiation.id, negotiation.round, negotiation.total_rounds, negotiation.max_rounds, negotiation.result, negotiation.performative]
+      required: [extension.name]
+  notification-t:
+    span_attributes:
+      allowed: [extension.name, notification.topic, push.notification.url]
+      required: [extension.name]
+    log_attributes:
+      allowed: [extension.name, notification.topic, push.notification.url]
+      required: [extension.name]
+  authorization-t:
+    span_attributes:
+      allowed: [extension.name, authorization.stage, authorization.policy.operation.type]
+      required: [extension.name]
+    log_attributes:
+      allowed: [extension.name, authorization.stage, authorization.policy.operation.type]
+      required: [extension.name]

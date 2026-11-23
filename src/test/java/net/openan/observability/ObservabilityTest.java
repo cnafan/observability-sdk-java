@@ -34,7 +34,7 @@ class ObservabilityTest {
 
     @Test void taskSignalsAreConvertedAndLinked() {
         Map<String, String> attrs = Map.of("extension.name", "TASK-T", "task.type", "diagnosis", "task.object", "demo");
-        ObservationSpan span = observe.trace("message/send", SignalKind.CLIENT, attrs);
+        ObservationSpan span = observe.trace("SendMessage", SignalKind.CLIENT, attrs);
         observe.log("gen_ai.agent.a2at.message", LogSeverity.INFO, "token=abc https://u:p@example.com/path?token=x", attrs, span);
         observe.metric("task.duration", 42000, Map.of("task.type", "diagnosis", "task.object", "demo"));
         observe.metric("task.count", 1, Map.of("task.type", "diagnosis"));
@@ -94,8 +94,8 @@ class ObservabilityTest {
     }
     private static Object metricValue(String dimension) {
         return switch (dimension) {
-            case "operation.name" -> "message/send";
-            case "gen_ai.system" -> "A2A";
+            case "operation.name" -> "SendMessage";
+            case "gen_ai.system" -> "a2a";
             case "negotiation.result" -> "accept";
             case "workflow.status" -> "completed";
             case "workflow.step.status" -> "done";
@@ -141,8 +141,8 @@ class ObservabilityTest {
         assertEquals("waiting", logs.get(AttributeKey.stringKey(Definitions.PREFIX + "substep.status")));
     }
     @Test void explicitAndCurrentContextCreateParentChild() {
-        ObservationSpan parent = observe.trace("message/send", SignalKind.SERVER, task());
-        ObservationSpan child = observe.trace("message/send", SignalKind.CLIENT, task(), parent);
+        ObservationSpan parent = observe.trace("SendMessage", SignalKind.SERVER, task());
+        ObservationSpan child = observe.trace("SendMessage", SignalKind.CLIENT, task(), parent);
         child.end(); parent.error(); parent.end();
         var childData = spans.getFinishedSpanItems().get(0); var parentData = spans.getFinishedSpanItems().get(1);
         assertEquals(parentData.getSpanId(), childData.getParentSpanId());
@@ -151,11 +151,11 @@ class ObservabilityTest {
     private static Map<String, String> task() { return Map.of("extension.name", "task-t", "task.type", "diagnosis"); }
     @Test void whitelistRequiredFieldsAndAtomicUpdates() {
         observe.trace("unknown", SignalKind.CLIENT, task()).end();
-        observe.trace("message/send", SignalKind.INTERNAL, task()).end();
-        observe.trace("message/send", SignalKind.CLIENT, Map.of("extension.name", "task-t")).end();
-        observe.trace("message/send", SignalKind.CLIENT, Map.of("extension.name", "negotiation-t", "task.type", "x")).end();
-        observe.trace("message/send", SignalKind.CLIENT, Map.of("extension.name", "task-t", "task.type", " ")).end();
-        observe.trace("message/send", SignalKind.CLIENT, Map.of("extension.name", "task-t", "task.type", "x", "negotiation.id", "x")).end();
+        observe.trace("SendMessage", SignalKind.INTERNAL, task()).end();
+        observe.trace("SendMessage", SignalKind.CLIENT, Map.of("extension.name", "task-t")).end();
+        observe.trace("SendMessage", SignalKind.CLIENT, Map.of("extension.name", "negotiation-t", "task.type", "x")).end();
+        observe.trace("SendMessage", SignalKind.CLIENT, Map.of("extension.name", "task-t", "task.type", " ")).end();
+        observe.trace("SendMessage", SignalKind.CLIENT, Map.of("extension.name", "task-t", "task.type", "x", "negotiation.id", "x")).end();
         observe.log("unknown", LogSeverity.INFO, "body", task());
         observe.log("gen_ai.agent.a2at.message", LogSeverity.INFO, null, task());
         observe.log("gen_ai.agent.a2at.message", LogSeverity.INFO, "body", Map.of("extension.name", "task-t"));
@@ -165,7 +165,7 @@ class ObservabilityTest {
         assertTrue(spans.getFinishedSpanItems().isEmpty());
         assertTrue(logs.getFinishedLogRecordItems().isEmpty());
         assertTrue(metrics.collectAllMetrics().isEmpty());
-        var span = observe.trace("message/send", SignalKind.CLIENT, task());
+        var span = observe.trace("SendMessage", SignalKind.CLIENT, task());
         span.attributes(Map.of("task.object", "before"));
         span.attributes(Map.of("task.object", "after", "negotiation.id", "invalid"));
         span.attributes(Map.of("extension.name", "negotiation-t"));
@@ -173,14 +173,14 @@ class ObservabilityTest {
         assertEquals("before", spans.getFinishedSpanItems().get(0).getAttributes().get(AttributeKey.stringKey(Definitions.PREFIX + "task.object")));
     }
     @Test void rejectedHandlePreservesCurrentContext() {
-        var parent = observe.trace("message/send", SignalKind.SERVER, task());
+        var parent = observe.trace("SendMessage", SignalKind.SERVER, task());
         try (var scope = parent.makeCurrent()) {
             var rejected = observe.trace("unknown", SignalKind.CLIENT, task());
             try (var ignored = rejected.makeCurrent()) {
-                observe.trace("message/send", SignalKind.CLIENT, task()).end();
+                observe.trace("SendMessage", SignalKind.CLIENT, task()).end();
                 observe.log("gen_ai.agent.a2at.message", LogSeverity.INFO, "body", task(), rejected);
             }
-            observe.trace("message/send", SignalKind.CLIENT, task(), rejected).end();
+            observe.trace("SendMessage", SignalKind.CLIENT, task(), rejected).end();
         }
         parent.end();
         var items = spans.getFinishedSpanItems();
@@ -191,7 +191,7 @@ class ObservabilityTest {
     }
     @Test void aliasesAggregationAndConversion() {
         var full = Map.of(Definitions.PREFIX + "extension.name", "TASK-T", Definitions.PREFIX + "task.type", "diagnosis", Definitions.PREFIX + "task.object", "token=abc");
-        var span = observe.trace("message/send", SignalKind.CLIENT, full);
+        var span = observe.trace("SendMessage", SignalKind.CLIENT, full);
         observe.log("gen_ai.agent.a2at.message", LogSeverity.INFO, "body", full, span);
         observe.metric(Definitions.PREFIX + "task.duration", 2.5, Map.of(Definitions.PREFIX + "task.type", "diagnosis"));
         observe.metric("task.duration", 3.5, Map.of("task.type", "diagnosis"));

@@ -58,7 +58,7 @@ Task-T spans, logs, `task.duration`, and `task.count` all require a non-blank `t
 
 ```java
 var task = Map.of("extension.name", "task-t", "task.type", "diagnosis");
-try (var span = observe.trace("message/send", SignalKind.CLIENT, task)) {
+try (var span = observe.trace("SendMessage", SignalKind.CLIENT, task)) {
     observe.log("gen_ai.agent.a2at.message", LogSeverity.INFO,
         "diagnosis completed", task, span);
     observe.metric("task.duration", 42_000, Map.of("task.type", "diagnosis"));
@@ -125,13 +125,13 @@ try (var span = observe.trace("a2at.substep.retrieve-alarms", SignalKind.INTERNA
 Use `TraceContextPropagation.inject` at the caller to write the current W3C `traceparent`, and `extractToCurrent` at the receiver before creating its server span.
 
 ```java
-try (var client = observe.trace("message/send", SignalKind.CLIENT, attributes);
+try (var client = observe.trace("SendMessage", SignalKind.CLIENT, attributes);
      var scope = client.makeCurrent()) {
     TraceContextPropagation.inject(headers, Map::put);
 }
 
 try (var scope = TraceContextPropagation.extractToCurrent(headers, headerGetter);
-     var server = observe.trace("message/send", SignalKind.SERVER, attributes)) {
+     var server = observe.trace("SendMessage", SignalKind.SERVER, attributes)) {
     try {
         handleRequest();
         server.ok();

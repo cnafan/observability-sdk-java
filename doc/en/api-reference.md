@@ -102,7 +102,7 @@ ObservationSpan trace(String name, SignalKind kind, Map<String, ?> attributes,
                       ObservationSpan parent)
 ```
 
-Creates an `ObservationSpan`. The second overload accepts an explicit parent. For `message/stream-event`, that object is used as a Span Link.
+Creates an `ObservationSpan`. The second overload accepts an explicit parent. For `SendStreamingMessage-event`, that object is used as a Span Link.
 
 | `SignalKind` | Use |
 |---|---|
@@ -186,7 +186,7 @@ Writes the current context to the carrier. It writes `traceparent` when the curr
 
 ```java
 Map<String, String> headers = new HashMap<>();
-try (var client = observe.trace("message/send", SignalKind.CLIENT, attributes);
+try (var client = observe.trace("SendMessage", SignalKind.CLIENT, attributes);
      var scope = client.makeCurrent()) {
     TraceContextPropagation.inject(headers, Map::put);
 }
@@ -203,7 +203,7 @@ TraceContextPropagation.Getter<Map<String, String>> getter = new TraceContextPro
 };
 
 try (var scope = TraceContextPropagation.extractToCurrent(headers, getter);
-     var server = observe.trace("message/send", SignalKind.SERVER, attributes)) {
+     var server = observe.trace("SendMessage", SignalKind.SERVER, attributes)) {
     server.ok();
 }
 ```
@@ -214,7 +214,7 @@ The complete allowlists, required attributes, types, and metric dimensions are d
 
 | Category | Traces | Metrics | Logs |
 |---|---|---|---|
-| A2A / A2A-T | `message/send`, `message/stream`, `message/stream-event`, `message/stream-error`, `tasks/*` | Two A2A metrics and eight Task-T / Negotiation-T / Notification-T / Authorization-T metrics | `gen_ai.agent.a2at.message` |
+| A2A / A2A-T | `SendMessage`, `SendStreamingMessage`, `SendStreamingMessage-event`, `SendStreamingMessage-end`, `GetTask`, `CancelTask`, `ListTasks`, `SubscribeToTask`, push-notification config operations | Two A2A metrics and eight Task-T / Negotiation-T / Notification-T / Authorization-T metrics | `gen_ai.agent.a2at.message` |
 | Workflow | `a2at.workflow`, `a2at.step.<name>` | `workflow.duration`, `workflow.count`, `step.duration` | `gen_ai.agent.a2at.workflow`, `gen_ai.agent.a2at.step` |
 | Agent | `a2at.substep.<name>` | `substep.duration`, `gen_ai.client.token.usage` | `gen_ai.agent.a2at.agent`, `gen_ai.agent.a2at.substep` |
 

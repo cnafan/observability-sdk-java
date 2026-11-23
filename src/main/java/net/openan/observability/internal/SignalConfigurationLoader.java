@@ -46,96 +46,31 @@ final class SignalConfigurationLoader {
             String version = string(root.get("version"), resource + ".version");
             if (versions.putIfAbsent(signal, version) != null) throw new IllegalStateException("Duplicate signal configuration: " + signal);
             loadAttributes(root.get("attributes"), resource + ".attributes", attributes);
-            loadMetrics(root.get("metrics"), resource + ".metrics", metrics);
-            if (root.containsKey("extensions")) {
-                for (Map.Entry<String, Object> entry : map(root.get("extensions"), resource + ".extensions").entrySet()) {
-                    Map<String, Object> extension = map(entry.getValue(), resource + ".extensions." + entry.getKey());
-                    if (spans.putIfAbsent(entry.getKey(), signal(entry.getKey(), extension.get("span_attributes"), entry.getKey() + ".span_attributes")) != null
-                        || logs.putIfAbsent(entry.getKey(), signal(entry.getKey(), extension.get("log_attributes"), entry.getKey() + ".log_attributes")) != null)
-                        throw new IllegalStateException("Duplicate extension: " + entry.getKey());
-                }
+            for (Map.Entry<String, Object> entry : map(root.get("metrics"), resource + ".metrics").entrySet()) {
+                Map<String, Object> item = map(entry.getValue(), resource + ".metrics." + entry.getKey());
+                Map<String, Object> metricAttributes = map(item.get("attributes"), resource + ".metrics." + entry.getKey() + ".attributes");
+                boolean histogram = string(item.get("type"), entry.getKey() + ".type").equals("histogram");
+                boolean integer = string(item.get("value_type"), entry.getKey() + ".value_type").equals("integer");
+                boolean a2a = optionalString(item.get("protocol"), entry.getKey() + ".protocol") != null
+                    && string(item.get("protocol"), entry.getKey() + ".protocol").equals("a2a");
+                if (item.containsKey("protocol") && !a2a) throw new IllegalStateException("Unsupported metric protocol at " + entry.getKey() + ".protocol");
+                Definitions.Metric metric = new Definitions.Metric(string(item.get("otel_name"), entry.getKey() + ".otel_name"), histogram, integer, a2a, text(item.get("unit"), entry.getKey() + ".unit"),
+                    strings(metricAttributes.get("allowed"), entry.getKey() + ".attributes.allowed"), strings(metricAttributes.get("required"), entry.getKey() + ".attributes.required"));
+                if (metrics.putIfAbsent(entry.getKey(), metric) != null) throw new IllegalStateException("Duplicate metric: " + entry.getKey());
             }
-            A2aProtocol a2a = loadTraces(root.get("traces"), resource + ".traces", spans, traces);
-            loadLogs(root.get("logs"), resource + ".logs", logs, namedLogs);
-            return a2a;
+            for (Map.Entry<String, Object> entry : map(root.get("extensions"), resource + ".extensions").entrySet()) {
+                Map<String, Object> extension = map(entry.getValue(), resource + ".extensions." + entry.getKey());
+                if (spans.putIfAbsent(entry.getKey(), signal(entry.getKey(), extension.get("span_attributes"), entry.getKey() + ".span_attributes")) != null
+                    || logs.putIfAbsent(entry.getKey(), signal(entry.getKey(), extension.get("log_attributes"), entry.getKey() + ".log_attributes")) != null)
+                    throw new IllegalStateException("Duplicate extension: " + entry.getKey());
+            }
+            loadNamedSignals(root.get("traces"), resource + ".traces", traces);
+            loadNamedSignals(root.get("logs"), resource + ".logs", namedLogs);
+            return root.containsKey("a2a") ? a2aProtocol(root.get("a2a"), resource + ".a2a") : null;
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Invalid signal configuration: " + resource, e);
-        }
-    }
-
-    private static void loadMetrics(Object value, String path, Map<String, Definitions.Metric> metrics) {
-        Map<String, Object> groups = map(value, path);
-        boolean grouped = groups.values().stream().allMatch(item -> item instanceof Map<?, ?> source && source.containsKey("signals"));
-        if (grouped) {
-            for (Map.Entry<String, Object> source : groups.entrySet()) {
-                boolean a2a = source.getKey().equals("a2a");
-                if (!a2a && !Set.of("a2at", "genai").contains(source.getKey())) {
-                    throw new IllegalStateException("Unsupported metric source at " + path + "." + source.getKey());
-                }
-                Map<String, Object> sourceMap = map(source.getValue(), path + "." + source.getKey());
-                loadMetricSignals(map(sourceMap.get("signals"), path + "." + source.getKey() + ".signals"),
-                    path + "." + source.getKey() + ".signals", a2a, metrics);
-            }
-            return;
-        }
-        loadMetricSignals(groups, path, false, metrics);
-    }
-
-    private static void loadMetricSignals(Map<String, Object> source, String path, boolean sourceA2a,
-        Map<String, Definitions.Metric> metrics) {
-        for (Map.Entry<String, Object> entry : source.entrySet()) {
-            Map<String, Object> item = map(entry.getValue(), path + "." + entry.getKey());
-            Map<String, Object> metricAttributes = map(item.get("attributes"), path + "." + entry.getKey() + ".attributes");
-            boolean histogram = string(item.get("type"), path + "." + entry.getKey() + ".type").equals("histogram");
-            boolean integer = string(item.get("value_type"), path + "." + entry.getKey() + ".value_type").equals("integer");
-            boolean a2a = sourceA2a || "a2a".equals(optionalString(item.get("protocol"), path + "." + entry.getKey() + ".protocol"));
-            if (item.containsKey("protocol") && !a2a) throw new IllegalStateException("Unsupported metric protocol at " + path + "." + entry.getKey() + ".protocol");
-            Definitions.Metric metric = new Definitions.Metric(string(item.get("otel_name"), path + "." + entry.getKey() + ".otel_name"), histogram,
-                integer, a2a, text(item.get("unit"), path + "." + entry.getKey() + ".unit"),
-                strings(metricAttributes.get("allowed"), path + "." + entry.getKey() + ".attributes.allowed"),
-                strings(metricAttributes.get("required"), path + "." + entry.getKey() + ".attributes.required"));
-            if (metrics.putIfAbsent(entry.getKey(), metric) != null) throw new IllegalStateException("Duplicate metric: " + entry.getKey());
-        }
-    }
-
-    private static A2aProtocol loadTraces(Object value, String path, Map<String, Definitions.Signal> spans,
-        Map<String, Definitions.NamedSignal> traces) {
-        Map<String, Object> traceGroups = map(value, path);
-        if (!traceGroups.containsKey("a2a")) {
-            loadNamedSignals(traceGroups, path, traces);
-            return null;
-        }
-        if (!traceGroups.containsKey("a2at")) throw new IllegalStateException("Missing A2A-T trace source at " + path);
-        loadExtensions(map(map(traceGroups.get("a2at"), path + ".a2at").get("signals"), path + ".a2at.signals"),
-            "extensions", spans, path + ".a2at.signals");
-        return a2aProtocol(map(traceGroups.get("a2a"), path + ".a2a"), path + ".a2a");
-    }
-
-    private static void loadLogs(Object value, String path, Map<String, Definitions.Signal> logs,
-        Map<String, Definitions.NamedSignal> namedLogs) {
-        Map<String, Object> logGroups = map(value, path);
-        if (!logGroups.containsKey("a2at")) {
-            loadNamedSignals(logGroups, path, namedLogs);
-            return;
-        }
-        loadExtensions(map(map(logGroups.get("a2at"), path + ".a2at").get("signals"), path + ".a2at.signals"),
-            "extensions", logs, path + ".a2at.signals");
-    }
-
-    private static void loadExtensions(Map<String, Object> signals, String extensionsKey, Map<String, Definitions.Signal> target,
-        String path) {
-        for (Map.Entry<String, Object> signalEntry : signals.entrySet()) {
-            Map<String, Object> signal = map(signalEntry.getValue(), path + "." + signalEntry.getKey());
-            for (Map.Entry<String, Object> extensionEntry : map(signal.get(extensionsKey), path + "." + signalEntry.getKey() + "." + extensionsKey).entrySet()) {
-                Map<String, Object> extension = map(extensionEntry.getValue(), path + "." + signalEntry.getKey() + "." + extensionsKey + "." + extensionEntry.getKey());
-                Definitions.Signal definition = signal(extensionEntry.getKey(), extension.get("attributes"), path + "." + signalEntry.getKey() + "." + extensionsKey + "." + extensionEntry.getKey() + ".attributes");
-                Definitions.Signal existing = target.putIfAbsent(extensionEntry.getKey(), definition);
-                if (existing != null && !existing.equals(definition)) {
-                    throw new IllegalStateException("Conflicting extension definition: " + extensionEntry.getKey());
-                }
-            }
         }
     }
     private static void loadAttributes(Object value, String path, Map<String, Definitions.Attribute> target) {
@@ -171,35 +106,21 @@ final class SignalConfigurationLoader {
             if (target.putIfAbsent(entry.getKey(), named) != null) throw new IllegalStateException("Duplicate named signal: " + entry.getKey());
         }
     }
-    private static A2aProtocol a2aProtocol(Map<String, Object> protocol, String path) {
-        Map<String, Object> signals = map(protocol.get("signals"), path + ".signals");
-        String message = traceWithRole(signals, "message", path);
-        String stream = traceWithRole(signals, "stream", path);
-        String streamEvent = traceWithRole(signals, "stream_event", path);
-        String streamError = traceWithRole(signals, "stream_error", path);
-        Set<String> traceNames = Set.copyOf(signals.keySet());
-        java.util.LinkedHashSet<String> clientOnlyTraces = new java.util.LinkedHashSet<>();
-        for (Map.Entry<String, Object> entry : signals.entrySet()) {
-            Map<String, Object> item = map(entry.getValue(), path + ".signals." + entry.getKey());
-            if (Boolean.TRUE.equals(item.get("client_only"))) clientOnlyTraces.add(entry.getKey());
+    private static A2aProtocol a2aProtocol(Object value, String path) {
+        Map<String, Object> protocol = map(value, path);
+        Map<String, Object> specialTraces = map(protocol.get("special_traces"), path + ".special_traces");
+        String message = string(specialTraces.get("message"), path + ".special_traces.message");
+        String stream = string(specialTraces.get("stream"), path + ".special_traces.stream");
+        String streamEvent = string(specialTraces.get("stream_event"), path + ".special_traces.stream_event");
+        String streamError = string(specialTraces.get("stream_error"), path + ".special_traces.stream_error");
+        Set<String> traceNames = strings(protocol.get("trace_names"), path + ".trace_names");
+        Set<String> clientOnlyTraces = strings(protocol.get("client_only_traces"), path + ".client_only_traces");
+        if (!traceNames.containsAll(Set.of(message, stream, streamEvent, streamError)) || !traceNames.containsAll(clientOnlyTraces)) {
+            throw new IllegalStateException("A2A special traces must be listed at " + path);
         }
         return new A2aProtocol(string(protocol.get("attribute_prefix"), path + ".attribute_prefix"), message, stream, streamEvent,
-            streamError, traceNames, Set.copyOf(clientOnlyTraces), signal(null,
-                map(signals.get(message), path + ".signals." + message).get("attributes"), path + ".signals." + message + ".attributes"),
-            signal(null, map(signals.get(streamEvent), path + ".signals." + streamEvent).get("attributes"), path + ".signals." + streamEvent + ".attributes"));
-    }
-
-    private static String traceWithRole(Map<String, Object> signals, String role, String path) {
-        String match = null;
-        for (Map.Entry<String, Object> entry : signals.entrySet()) {
-            Map<String, Object> signal = map(entry.getValue(), path + ".signals." + entry.getKey());
-            if (role.equals(optionalString(signal.get("role"), path + ".signals." + entry.getKey() + ".role"))) {
-                if (match != null) throw new IllegalStateException("Duplicate A2A trace role at " + path + ".signals: " + role);
-                match = entry.getKey();
-            }
-        }
-        if (match == null) throw new IllegalStateException("Missing A2A trace role at " + path + ".signals: " + role);
-        return match;
+            streamError, traceNames, clientOnlyTraces, signal(null, protocol.get("span_attributes"), path + ".span_attributes"),
+            signal(null, protocol.get("stream_event_attributes"), path + ".stream_event_attributes"));
     }
     @SuppressWarnings("unchecked")
     private static Map<String, Object> map(Object value, String path) {

@@ -62,7 +62,7 @@ public final class Observability {
         if (!enabled.get()) return ObservationSpan.noop();
         Context context = parent == null ? Context.current() : parent.context();
         try {
-            boolean streamEvent = Definitions.STREAM_EVENT.equals(name);
+            boolean streamEvent = Definitions.STREAM_EVENT.equals(name) || Definitions.STREAM_ERROR.equals(name);
             boolean clientOnly = Definitions.A2A_CLIENT_ONLY_SPAN_NAMES.contains(name);
             boolean a2a = Definitions.A2A_SPAN_NAMES.contains(name);
             Definitions.Signal definition;
@@ -108,7 +108,7 @@ public final class Observability {
             Attributes attrs = AttributesConverter.convert(attributes, 'M', definition.dimensions());
             if (a2a) {
                 if (attrs.get(AttributeKey.stringKey(Definitions.A2A_PREFIX + "operation.name")) == null) throw new IllegalArgumentException();
-                attrs = attrs.toBuilder().put("gen_ai.system", "A2A").build();
+                attrs = attrs.toBuilder().put("gen_ai.system", "a2a").build();
             } else {
                 for (String required : definition.requiredDimensions()) {
                     Object requiredValue = attrs.asMap().entrySet().stream()

@@ -22,6 +22,14 @@ metrics:
     attributes:
       allowed: [gen_ai.agent.name, substep.name]
       required: [gen_ai.agent.name, substep.name]
+  gen_ai.client.token.usage:
+    otel_name: gen_ai.client.token.usage
+    type: counter
+    value_type: integer
+    unit: token
+    attributes:
+      allowed: [gen_ai.agent.name, gen_ai.request.model, gen_ai.token.type]
+      required: [gen_ai.agent.name, gen_ai.request.model, gen_ai.token.type]
 
 traces:
   substep:

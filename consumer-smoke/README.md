@@ -22,7 +22,24 @@ The app creates one Task-T Span, a linked message Log, and the `task.duration` a
 ## Full signal consumer
 
 `ConsumerAllSignals` is separate from the fast smoke consumer. It emits every configured
-signal family with valid attributes:
+signal family with valid attributes as a correlated task flow. The A2A client/server,
+Workflow, Step, and Agent Substep spans use parent-child relationships and share the
+same task, context, and message identifiers. Logs are attached to their corresponding
+business span. Streaming event and end spans are intentionally emitted as Span Links,
+which is the SDK's configured model for asynchronous stream events.
+
+```text
+SendMessage CLIENT (Task-T)
+└─ SendMessage SERVER
+   ├─ A2A client/server operation pairs and push-related client spans
+   ├─ SendStreamingMessage CLIENT → SERVER → stream negotiation
+   │  ├─ SendStreamingMessage-event  -- Span Link --> stream client
+   │  └─ SendStreamingMessage-end    -- Span Link --> stream client
+   ├─ Workflow → Step → Agent Substep
+   └─ Negotiation-T / Notification-T / Authorization-T message and stream spans
+```
+
+The flow covers:
 
 - A2A client/server operations, streaming event/end, stream negotiation, and push-related traces;
 - A2A operation and streaming metrics;

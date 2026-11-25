@@ -49,6 +49,7 @@ public final class ConsumerComplaintHandling {
         Map<String, Object> workflow = Map.of("workflow.id", workflowId, "workflow.type", "enterprise-private-line-complaint-handling",
             "workflow.status", "completed", "workflow.session_id", "sla-complaint-" + runId);
         try (var root = observe.trace("a2at.workflow", SignalKind.INTERNAL, workflow)) {
+            observe.log("gen_ai.agent.a2at.workflow", LogSeverity.INFO, "Complaint handling started", workflow, root);
             for (int i = 0; i < STEPS.length; i++) emitStep(observe, root, runId, i + 1);
             observe.metric("workflow.duration", 9720, Map.of("workflow.type", "enterprise-private-line-complaint-handling", "workflow.status", "completed"));
             observe.metric("workflow.count", 1, Map.of("workflow.type", "enterprise-private-line-complaint-handling", "workflow.status", "completed"));
@@ -65,6 +66,8 @@ public final class ConsumerComplaintHandling {
             try (var substep = observe.trace("a2at.substep.analyze", SignalKind.INTERNAL,
                     Map.of("gen_ai.agent.name", owner, "substep.name", STEPS[index - 1], "substep.status", "completed"), stepSpan)) {
                 observe.log("gen_ai.agent.a2at.substep", LogSeverity.INFO, STEPS[index - 1] + " completed", step, substep);
+                observe.log("gen_ai.agent.a2at.agent", LogSeverity.INFO, owner + " completed " + STEPS[index - 1],
+                    Map.of("gen_ai.agent.name", owner, "agent.state", "completed"), substep);
                 if (index == 4) pair(observe, substep, runId, "West-GD NETSpirit");
                 if (index == 4) pair(observe, substep, runId, "East-GD NETSpirit");
                 if (index == 5) pair(observe, substep, runId, "West-GD NETSpirit");
@@ -81,6 +84,7 @@ public final class ConsumerComplaintHandling {
             "context_id", "complaint-context-" + runId, "extension.name", "task-t", "task.type", "fault-location", "task.object", target);
         try (var client = observe.trace("SendMessage", SignalKind.CLIENT, attrs, parent);
                 var server = observe.trace("SendMessage", SignalKind.SERVER, attrs, client)) {
+            observe.log("gen_ai.agent.a2at.message", LogSeverity.INFO, "Complaint task dispatched to " + target, attrs, client);
             observe.metric("task.count", 1, Map.of("task.type", "fault-location", "task.object", target));
             server.ok(); client.ok();
         }
